@@ -21,23 +21,6 @@ services:
       timeout: 5s
       retries: 5
 
-  # FastAPI application
-  api:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: bench_management_api
-    restart: always
-    environment:
-      - DATABASE_URL=postgresql://postgres:postgres@db:5432/bench_management
-      - SECRET_KEY=your_secure_secret_key_here
-    ports:
-      - "8000:8000"
-    depends_on:
-      db:
-        condition: service_healthy
-    volumes:
-      - .:/app
 
 volumes:
   postgres_data:

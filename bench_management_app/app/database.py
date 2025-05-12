@@ -6,7 +6,7 @@ import os
 # Database connection URL
 SQLALCHEMY_DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "postgresql://postgres:postgres@db:5432/bench_management"
+    "postgresql://postgres:postgres@localhost:5432/bench_management"
 )
 
 # Create SQLAlchemy engine

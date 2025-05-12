@@ -2,7 +2,7 @@
 # Simplifies common development and deployment tasks
 
 # Variables
-PYTHON = python3
+PYTHON = python
 PIP = $(PYTHON) -m pip
 PYTEST = pytest
 PYTEST_ARGS = -v
@@ -122,7 +122,7 @@ update-deps:
 # Build Docker containers
 build:
 	@echo "Building Docker containers..."
-	$(DOCKER_COMPOSE) -f $(DOCKER_COMPOSE_FILE) build
+	$(DOCKER_COMPOSE) -f $(DOCKER_COMPOSE_FILE) up
 
 # Start FastAPI development server (not in Docker)
 dev:
