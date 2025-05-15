@@ -4,6 +4,8 @@ from app.dao import UserDAO
 from app.auth import get_password_hash, verify_password, create_access_token
 from pydantic import BaseModel, EmailStr, validator
 from typing import Optional
+import os
+from mistralai import Mistral, Messages, SystemMessage, UserMessage
 
 class UserCreate(BaseModel):
     first_name: str
@@ -126,3 +128,39 @@ class UserService:
             token_type="bearer",
             user=UserResponse.from_orm(user)
         )
+
+class ChatRequest(BaseModel):
+    prompt: str
+    chat_history: list[Messages]
+class ChatResponse(BaseModel):
+    response: str
+class AIService:
+
+    def __init__(self):
+        system_prompt = """
+            You are a chat bot assistant designed to help with the staffing processes at EY. Two types of users will be communicating with you: 1) people
+            with technical skills that looking for engagements, and 2) people who are trying to staff engagements with the resources who have the correct
+            skills. Your job is to understand what the engagement requirements are and try to match staff with engagments they can contribute to.
+        """
+
+        self.messages: list[Messages] = []
+        self.messages.append(SystemMessage(content=system_prompt))
+
+    def chat(self, model: str, prompt: str, chat_history: list[Messages] = []) -> str:
+        if model.lower() == "mistral":
+            api_key = os.environ["MISTRAL_API_KEY"]
+            model = "mistral-large-latest"
+
+            client = Mistral(api_key=api_key)
+
+            messages = self.messages
+            messages.extend(chat_history)
+            messages.append(UserMessage(content=prompt))
+
+            chat_response = client.chat.complete(
+                model = model,
+                messages = messages
+            )
+            return ChatResponse(response=chat_response.choices[0].message.content)
+        else:
+            raise Exception("AI model is not currently supported or does not exist")
