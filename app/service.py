@@ -1,27 +1,18 @@
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
-from app.dao import UserDAO
+from app.dao import UserDAO, OptionDAO, QueryDAO
 from app.auth import get_password_hash, verify_password, create_access_token
-from pydantic import BaseModel, EmailStr, validator
-from typing import Optional
+from pydantic import BaseModel, EmailStr
+from typing import List
 
 class UserCreate(BaseModel):
     first_name: str
     last_name: str
     email: EmailStr
     password: str
-    designation: str
-    
-    @validator('designation')
-    def validate_designation(cls, v):
-        valid_designations = {
-            'Manager_Level1', 'Manager_Level2', 'Manager_Level3', 'Manager_Level4',
-            'SeniorConsultant_Level1', 'SeniorConsultant_Level2', 'SeniorConsultant_Level3', 'SeniorConsultant_Level4'
-        }
-        if v not in valid_designations:
-            raise ValueError(f'Designation must be one of {valid_designations}')
-        return v
-        
+    department_id: int
+    designation_id: int
+
     class Config:
         orm_mode = True
 
@@ -35,6 +26,8 @@ class UserResponse(BaseModel):
     last_name: str
     email: EmailStr
     designation: str
+    department_id: int
+    designation_id: int
     
     class Config:
         orm_mode = True
@@ -43,6 +36,15 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: str
     user: UserResponse
+
+class OptionResponse(BaseModel):
+    id: int
+    initial_option: str
+
+class QueryResponse(BaseModel):
+    option_id: int
+    ask: str
+    order_num: int
 
 class UserService:
     @staticmethod
@@ -126,3 +128,15 @@ class UserService:
             token_type="bearer",
             user=UserResponse.from_orm(user)
         )
+
+class OptionService:
+    @staticmethod
+    def list_initial_options(db: Session) -> List[str]:
+        optionList = OptionDAO.list_initial_options(db)
+        return [opt.initial_option for opt in optionList]
+
+class QueryService:
+    @staticmethod
+    def list_all_queries_per_option(optionId: int, db: Session) -> List[QueryResponse]:
+        queryList = QueryDAO.list_queries_per_option(optionId, db)
+        return [QueryResponse(option_id=query.option_id, ask=query.ask, order_num=query.order_num)  for query in queryList]
