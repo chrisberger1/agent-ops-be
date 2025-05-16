@@ -134,6 +134,12 @@ class ChatRequest(BaseModel):
     chat_history: list[Messages]
 class ChatResponse(BaseModel):
     response: str
+    chat_history: list[Messages]
+
+class SummarizeRequest(BaseModel):
+    chat_history: list[Messages]
+class SummarizeResponse(BaseModel):
+    response: str
 class AIService:
 
     def __init__(self):
@@ -141,6 +147,15 @@ class AIService:
             You are a chat bot assistant designed to help with the staffing processes at EY. Two types of users will be communicating with you: 1) people
             with technical skills that looking for engagements, and 2) people who are trying to staff engagements with the resources who have the correct
             skills. Your job is to understand what the engagement requirements are and try to match staff with engagments they can contribute to.
+
+            Your goal is to gather enough information from the user to be able to create a text summary that will outline all necessary details of the
+            engagement. Keep asking questions until you are confident you are able to do this. When you have enough information, ask the user if they would
+            like to create an opportunity based on this information, and if the answer is yes, we will call another endpoint to summarize the info.
+
+            When someone asks you for an engagement, collect the following information:
+            1. Rank
+            2. Applicable skills
+            3. Availability timeline
         """
 
         self.messages: list[Messages] = []
@@ -161,6 +176,44 @@ class AIService:
                 model = model,
                 messages = messages
             )
-            return ChatResponse(response=chat_response.choices[0].message.content)
+            messages.append(SystemMessage(content=chat_response.choices[0].message.content))
+
+            return ChatResponse(response=chat_response.choices[0].message.content, chat_history=messages[1:])
+        else:
+            raise Exception("AI model is not currently supported or does not exist")
+        
+    def summarize(self, model: str, chat_history: list[Messages]):
+        if model.lower() == "mistral":
+            api_key = os.environ["MISTRAL_API_KEY"]
+            model = "mistral-large-latest"
+
+            client = Mistral(api_key=api_key)
+
+            summarize_instructions = """
+                The following message from the user will contain a series of messages from a prior conversation describing a potential engagement 
+                opportunity. It is your job to summarize these messages into a format that will be stored as an opportunity. You will include the
+                following sections in the opportunity as you understand them from the conversation.
+
+                1. Engagement Name - Name the opportunity based on the goal of the engagement and the client
+                2. Required Resources - List out all of the roles needed for the engagement and what skills are required for each role as well as
+                rank requirements.
+                3. Estimated Start Date and Timeline
+
+                Return this result as a string that can be saved into a database to later be indexed or retrieved.
+            """
+
+            self.messages.append(SystemMessage(content=summarize_instructions))
+
+            messages = self.messages
+            
+            messages.append(UserMessage(content=str(chat_history)))
+
+            chat_response = client.chat.complete(
+                model = model,
+                messages = messages
+            )
+            messages.append(SystemMessage(content=chat_response.choices[0].message.content))
+
+            return SummarizeResponse(response=chat_response.choices[0].message.content)
         else:
             raise Exception("AI model is not currently supported or does not exist")

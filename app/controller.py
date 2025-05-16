@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.service import UserService, UserCreate, UserLogin, UserResponse, TokenResponse,ChatRequest, ChatResponse, AIService
+from app.service import UserService, UserCreate, UserLogin, UserResponse, TokenResponse, ChatRequest, ChatResponse, SummarizeRequest, SummarizeResponse, AIService
 
 router = APIRouter(tags=["auth"])
 
@@ -54,3 +54,8 @@ def chat(request: ChatRequest):
     """
     ai_service = AIService()
     return ai_service.chat(model='mistral', prompt=request.prompt, chat_history=request.chat_history)
+
+@router.post("/summarize", response_model=SummarizeResponse)
+def summarize(request: SummarizeRequest):
+    ai_service = AIService()
+    return ai_service.summarize(model='mistral', chat_history=request.chat_history)
