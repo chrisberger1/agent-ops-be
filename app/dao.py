@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
-from app.models import User
+from app.models import User, Option, Query
+from typing import List
 
 class UserDAO:
     @staticmethod
@@ -56,3 +57,14 @@ class UserDAO:
             User object if found, None otherwise
         """
         return db.query(User).filter(User.id == user_id).first()
+
+class OptionDAO:
+    @staticmethod
+    def list_initial_options(db: Session) -> List[Option]:
+        return db.query(Option).all()
+
+
+class QueryDAO:
+    @staticmethod
+    def list_queries_per_option(optionId: int, db: Session) -> List[Query]:
+        return db.query(Query).filter(Query.option_id == optionId).all()
