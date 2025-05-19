@@ -195,9 +195,10 @@ class AIService:
                 following sections in the opportunity as you understand them from the conversation.
 
                 1. Engagement Name - Name the opportunity based on the goal of the engagement and the client
-                2. Required Resources - List out all of the roles needed for the engagement and what skills are required for each role as well as
-                rank requirements.
-                3. Estimated Start Date and Timeline
+                2. Engagement Summary - Explain in a few sentences on what the engagement is about and what will get done during it
+                3. Required Resources - List out all of the roles needed for the engagement and what skills are required for each role as well as
+                rank requirements. Also include a few sentence summary for each role about what they will be doing.
+                4. Estimated Start Date and Timeline
 
                 Return this result as a string that can be saved into a database to later be indexed or retrieved.
             """
