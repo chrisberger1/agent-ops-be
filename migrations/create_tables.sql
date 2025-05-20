@@ -76,13 +76,14 @@ CREATE TABLE IF NOT EXISTS message (
 
 
 -- Create the opportunity table within the schema
+-- Create the opportunity table within the schema
 CREATE TABLE IF NOT EXISTS opportunity (
     id SERIAL PRIMARY KEY,
     details TEXT NOT NULL,
     department_id INT REFERENCES department(id),
+    user_id INT references users(id),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
-
 
 
 -- Create the option table within the schema
