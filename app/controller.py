@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.service import UserService, UserCreate, UserLogin, UserResponse, TokenResponse, ChatRequest, ChatResponse, SummarizeRequest, SummarizeResponse, AIService
+from app.service import UserService, UserCreate, UserLogin, UserResponse, TokenResponse, OptionService, QueryService, QueryResponse, ChatRequest, ChatResponse, SummarizeRequest, SummarizeResponse, AIService
+from typing import List
 
 router = APIRouter(tags=["auth"])
 
@@ -40,6 +41,26 @@ async def login(
     """
     user_login = UserLogin(email=form_data.username, password=form_data.password)
     return UserService.validate_user(db, user_login)
+
+@router.get("/options", response_model=List[str], status_code=status.HTTP_200_OK)
+async def get_options(db: Session = Depends(get_db)):
+    """
+    Retrieve all initial options.
+
+    Returns:
+        List of option names (initial_option)
+    """
+    return OptionService.list_initial_options(db)
+
+@router.get("/query/{option_id}", response_model=List[QueryResponse], status_code=status.HTTP_200_OK)
+async def get_query(option_id:int, db: Session = Depends(get_db)):
+    """
+    Retrieve all initial options.
+
+    Returns:
+        List of option names (initial_option)
+    """
+    return QueryService.list_all_queries_per_option(option_id, db)
 
 @router.post("/chat", response_model=ChatResponse)
 def chat(request: ChatRequest):
