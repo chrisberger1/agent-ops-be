@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.service import UserService, UserCreate, UserLogin, UserResponse, TokenResponse, OptionService, QueryService, QueryResponse, ChatRequest, ChatResponse, SummarizeRequest, SummarizeResponse, AIService
+from app.service import UserService, UserCreate, UserLogin, UserResponse, TokenResponse, OptionService, QueryService, QueryResponse, ChatRequest, ChatResponse, SummarizeRequest, SummarizeResponse, AIService, OpportunityService, OpportunityResponse
 from typing import List
 
 router = APIRouter(tags=["auth"])
@@ -77,6 +77,10 @@ def chat(request: ChatRequest):
     return ai_service.chat(model='mistral', prompt=request.prompt, chat_history=request.chat_history)
 
 @router.post("/summarize", response_model=SummarizeResponse)
-def summarize(request: SummarizeRequest):
+def summarize(request: SummarizeRequest, db: Session = Depends(get_db)):
     ai_service = AIService()
-    return ai_service.summarize(model='mistral', chat_history=request.chat_history)
+    return ai_service.summarize(model='mistral', chat_history=request.chat_history, db=db)
+
+@router.get("/opportunities", response_model=list[OpportunityResponse])
+def get_opportunities(db: Session = Depends(get_db)):
+    return OpportunityService.get_opportunities(db)

@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
-from app.models import User, Option, Query
+from app.models import User, Option, Query, Opportunity
 from typing import List
 
 class UserDAO:
@@ -68,3 +68,21 @@ class QueryDAO:
     @staticmethod
     def list_queries_per_option(optionId: int, db: Session) -> List[Query]:
         return db.query(Query).filter(Query.option_id == optionId).all()
+
+class OpportunityDAO:
+    @staticmethod
+    def add_opportunity(db: Session, opportunity_data: dict) -> Opportunity:
+        opportunity = Opportunity(**opportunity_data)
+        
+        try:
+            db.add(opportunity)
+            db.commit()
+            db.refresh(opportunity)
+            return opportunity
+        except IntegrityError as e:
+            db.rollback()
+            raise e
+    
+    @staticmethod
+    def get_all_opportunities(db: Session) -> list[Opportunity]:
+        return db.query(Opportunity).all()

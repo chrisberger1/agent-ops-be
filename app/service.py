@@ -1,11 +1,12 @@
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
-from app.dao import UserDAO, OptionDAO, QueryDAO
+from app.dao import UserDAO, OptionDAO, QueryDAO, OpportunityDAO
 from app.auth import get_password_hash, verify_password, create_access_token
+from app.models import Opportunity
 from pydantic import BaseModel, EmailStr
-from typing import List
+from typing import List, Optional
 import os
-from mistralai import Mistral, Messages, SystemMessage, UserMessage
+from mistralai import Mistral, Messages, SystemMessage, UserMessage, AssistantMessage
 
 class UserCreate(BaseModel):
     first_name: str
@@ -16,7 +17,7 @@ class UserCreate(BaseModel):
     designation_id: int
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class UserLogin(BaseModel):
     email: EmailStr
@@ -32,7 +33,7 @@ class UserResponse(BaseModel):
     designation_id: int
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class TokenResponse(BaseModel):
     access_token: str
@@ -47,6 +48,12 @@ class QueryResponse(BaseModel):
     option_id: int
     ask: str
     order_num: int
+
+class OpportunityResponse(BaseModel):
+    id: int
+    details: str
+    department_id: Optional[int] = None
+    user_id: Optional[int] = None
 
 class UserService:
     @staticmethod
@@ -142,6 +149,12 @@ class QueryService:
     def list_all_queries_per_option(optionId: int, db: Session) -> List[QueryResponse]:
         queryList = QueryDAO.list_queries_per_option(optionId, db)
         return [QueryResponse(option_id=query.option_id, ask=query.ask, order_num=query.order_num)  for query in queryList]
+    
+class OpportunityService:
+    @staticmethod
+    def get_opportunities(db: Session) -> List[OpportunityResponse]:
+        opportunityList = OpportunityDAO.get_all_opportunities(db)
+        return [OpportunityResponse(id=opp.id, details=opp.details, department_id=opp.department_id, user_id=opp.user_id)  for opp in opportunityList]
 
 class ChatRequest(BaseModel):
     prompt: str
@@ -166,10 +179,19 @@ class AIService:
             engagement. Keep asking questions until you are confident you are able to do this. When you have enough information, ask the user if they would
             like to create an opportunity based on this information, and if the answer is yes, we will call another endpoint to summarize the info.
 
-            When someone asks you for an engagement, collect the following information:
-            1. Rank
-            2. Applicable skills
-            3. Availability timeline
+            When someone asks you for work, collect the following information:
+            1. Opportunity Type - BD Work/Client engagement/Internal Asset Building?
+            2. Applicable skills - Techstack (Java/SAP/Salesforce/AI)?
+            3. Availability timeline - Start Date (mm/dd/yyyy)?
+            4. Current rank
+
+            If someone asks you to create an engagement, make sure you get the answers to all of these questions:
+            1. May I know the opportunity name?
+            2. Opportunity Type - BD Work/Client engagement/Internal Asset Building?
+            3. Duration in weeks?
+            4. Start Date (mm/dd/yyyy)?
+            5. Number of Resources with level(for ex - 3 Staff/2 Senior/1 Manager)
+            6. Skills required for each role?
         """
 
         self.messages: list[Messages] = []
@@ -190,13 +212,13 @@ class AIService:
                 model = model,
                 messages = messages
             )
-            messages.append(SystemMessage(content=chat_response.choices[0].message.content))
+            messages.append(AssistantMessage(content=chat_response.choices[0].message.content))
 
             return ChatResponse(response=chat_response.choices[0].message.content, chat_history=messages[1:])
         else:
             raise Exception("AI model is not currently supported or does not exist")
         
-    def summarize(self, model: str, chat_history: list[Messages]):
+    def summarize(self, model: str, chat_history: list[Messages], db: Session):
         if model.lower() == "mistral":
             api_key = os.environ["MISTRAL_API_KEY"]
             model = "mistral-large-latest"
@@ -229,6 +251,15 @@ class AIService:
             )
             messages.append(SystemMessage(content=chat_response.choices[0].message.content))
 
+            # TODO: Pass in department_id and user_id to be added to the db here
+            opportunity = dict({'details': chat_response.choices[0].message.content,
+                                'department_id': None,
+                                'user_id': None})
+
+            opportunityRes = OpportunityDAO.add_opportunity(db, opportunity)
+
             return SummarizeResponse(response=chat_response.choices[0].message.content)
         else:
             raise Exception("AI model is not currently supported or does not exist")
+        
+    

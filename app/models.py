@@ -46,6 +46,7 @@ class Opportunity(Base):
     id = Column(Integer, primary_key=True, index=True)
     details = Column(Text, nullable=False)
     department_id = Column(Integer, ForeignKey("department.id"))
+    user_id = Column(Integer, ForeignKey("users.id"))
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
 
