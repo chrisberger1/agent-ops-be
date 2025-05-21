@@ -1,4 +1,4 @@
-# Bench Management App
+# Opportunity Collector App
 
 A FastAPI application for user registration and authentication of managers and senior consultants.
 

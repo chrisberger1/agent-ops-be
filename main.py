@@ -9,7 +9,7 @@ Base.metadata.create_all(bind=engine)
 
 # Initialize FastAPI application
 app = FastAPI(
-    title="Bench Management App",
+    title="AI Opporturniy Holder App",
     description="API for user registration and authentication",
     version="1.0.0"
 )
@@ -28,7 +28,7 @@ app.include_router(auth_router)
 
 @app.get("/")
 async def root():
-    return {"message": "Bench Management App is running"}
+    return {"message": "Opportunity Collector App is running"}
 
 if __name__ == "__main__":
     import uvicorn

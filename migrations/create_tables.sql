@@ -1,4 +1,8 @@
 
+DROP SCHEMA IF EXISTS agentops CASCADE;
+
+-- Create the schema
+CREATE SCHEMA IF NOT EXISTS agentops;
 
 -- Drop 'users' table if it exists
 DROP TABLE IF EXISTS users;
@@ -24,10 +28,6 @@ DROP TABLE IF EXISTS query;
 -- Drop 'option' table if it exists
 DROP TABLE IF EXISTS option;
 
----DROP SCHEMA IF EXISTS bench_management CASCADE;
-
--- Create the schema
-CREATE SCHEMA IF NOT EXISTS bench_management;
 
 -- Create the department table within the schema
 CREATE TABLE IF NOT EXISTS department (
@@ -38,6 +38,7 @@ CREATE TABLE IF NOT EXISTS department (
 -- Create the designation table within the schema
 CREATE TABLE IF NOT EXISTS designation (
     id SERIAL PRIMARY KEY,
+    department_id INT REFERENCES department(id),
     title VARCHAR(100) NOT NULL
 );
 
@@ -76,7 +77,6 @@ CREATE TABLE IF NOT EXISTS message (
 
 
 -- Create the opportunity table within the schema
--- Create the opportunity table within the schema
 CREATE TABLE IF NOT EXISTS opportunity (
     id SERIAL PRIMARY KEY,
     details TEXT NOT NULL,
@@ -84,6 +84,7 @@ CREATE TABLE IF NOT EXISTS opportunity (
     user_id INT references users(id),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
 
 
 -- Create the option table within the schema
@@ -127,12 +128,12 @@ VALUES
     ('Digital Engineering'),
     ('AI & Data');
 
-INSERT INTO designation (title)
+INSERT INTO designation (title, department_id)
 VALUES
-    ('Staff'),
-    ('SeniorConsultant'),
-    ('Manager'),
-    ('Senior Manager');
+    ('Staff', 1),
+    ('SeniorConsultant', 1),
+    ('Manager', 1),
+    ('Senior Manager', 1);
 
 -- Note: Passwords are bcrypt hashed - all sample users have password "password123"
 INSERT INTO users (first_name, last_name, email, password, department_id, designation_id)

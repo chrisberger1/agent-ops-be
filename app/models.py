@@ -23,13 +23,14 @@ class Department(Base):
 class Designation(Base):
     __tablename__ = "designation"
     id = Column(Integer, primary_key=True, index=True)
+    department_id = Column(Integer, ForeignKey("department.id"))
     title = Column(String(100), nullable=False)
 
 
 class Conversation(Base):
     __tablename__ = "conversation"
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("department.id"))
+    department_id = Column(Integer, ForeignKey("department.id"))
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
 

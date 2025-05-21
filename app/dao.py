@@ -1,7 +1,19 @@
+from dataclasses import dataclass
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
-from app.models import User, Option, Query
+from app.models import User, Option, Query, Department, Designation
 from typing import List
+
+@dataclass
+class DepartmentDTO:
+    id: int
+    name: str
+
+@dataclass
+class DesignationDTO:
+    id: int
+    department_id: int
+    title: str
 
 class UserDAO:
     @staticmethod
@@ -68,3 +80,15 @@ class QueryDAO:
     @staticmethod
     def list_queries_per_option(optionId: int, db: Session) -> List[Query]:
         return db.query(Query).filter(Query.option_id == optionId).all()
+
+class DepartmentDAO:
+    @staticmethod
+    def list_departments(db: Session) -> List[DepartmentDTO]:
+        depts = db.query(Department).all()
+        return [DepartmentDTO(id=d.id, name=d.name) for d in depts]
+
+class DesignationDAO:
+    @staticmethod
+    def list_designations_per_department(departmentId: int, db: Session) -> List[DesignationDTO]:
+        designation_list = db.query(Designation).filter(Designation.department_id == departmentId).all()
+        return [DesignationDTO(id=d.id, department_id=d.department_id, title=d.title) for d in designation_list]

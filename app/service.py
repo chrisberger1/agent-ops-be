@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
-from app.dao import UserDAO, OptionDAO, QueryDAO
+from app.dao import UserDAO, OptionDAO, QueryDAO, DepartmentDAO, DesignationDAO, DepartmentDTO, DesignationDTO
 from app.auth import get_password_hash, verify_password, create_access_token
 from pydantic import BaseModel, EmailStr
 from typing import List
@@ -232,3 +232,15 @@ class AIService:
             return SummarizeResponse(response=chat_response.choices[0].message.content)
         else:
             raise Exception("AI model is not currently supported or does not exist")
+
+
+class DepartmentService:
+    @staticmethod
+    def list_department(db: Session) -> List[DepartmentDTO]:
+        return DepartmentDAO.list_departments(db)
+
+class DesignationService:
+    @staticmethod
+    def list_designation(departmentId:int, db: Session) -> List[DesignationDTO]:
+        return DesignationDAO.list_designations_per_department(departmentId, db)
+

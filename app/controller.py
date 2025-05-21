@@ -1,8 +1,8 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, status, Path
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.service import UserService, UserCreate, UserLogin, UserResponse, TokenResponse, OptionService, QueryService, QueryResponse, ChatRequest, ChatResponse, SummarizeRequest, SummarizeResponse, AIService
+from app.service import *
 from typing import List
 
 router = APIRouter(tags=["auth"])
@@ -80,3 +80,23 @@ def chat(request: ChatRequest):
 def summarize(request: SummarizeRequest):
     ai_service = AIService()
     return ai_service.summarize(model='mistral', chat_history=request.chat_history)
+
+@router.get("/department", response_model=List[DepartmentDTO], status_code=status.HTTP_200_OK)
+async def department(db: Session = Depends(get_db)):
+    """
+    Retrieve all departments
+
+    Returns:
+        List of department id, name
+    """
+    return DepartmentService.list_department(db)
+
+@router.get("/designation/{department_id}", response_model=List[DesignationDTO], status_code=status.HTTP_200_OK)
+async def designation(department_id: int = Path(..., title="Department ID", ge=1), db: Session = Depends(get_db)):
+    """
+    Retrieve all designation per deparment.
+
+    Returns:
+        List of designation name, id, department id
+    """
+    return DesignationService.list_designation(department_id, db)
