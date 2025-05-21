@@ -77,9 +77,13 @@ def chat(request: ChatRequest):
     return ai_service.chat(model='mistral', prompt=request.prompt, chat_history=request.chat_history)
 
 @router.post("/summarize", response_model=SummarizeResponse)
-def summarize(request: SummarizeRequest):
+def summarize(request: SummarizeRequest, db: Session = Depends(get_db)):
     ai_service = AIService()
-    return ai_service.summarize(model='mistral', chat_history=request.chat_history)
+    return ai_service.summarize(model='mistral', chat_history=request.chat_history, db=db)
+
+@router.get("/opportunities", response_model=list[OpportunityResponse])
+def get_opportunities(db: Session = Depends(get_db)):
+    return OpportunityService.get_opportunities(db)
 
 @router.get("/department", response_model=List[DepartmentDTO], status_code=status.HTTP_200_OK)
 async def department(db: Session = Depends(get_db)):
