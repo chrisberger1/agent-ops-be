@@ -74,7 +74,13 @@ def chat(request: ChatRequest):
         ChatResponse: Model response
     """
     ai_service = AIService()
-    return ai_service.chat(model='mistral', prompt=request.prompt, chat_history=request.chat_history)
+
+    user = request.user
+
+    if (user == 'lead'):
+        return ai_service.chat(model='mistral', prompt=request.prompt, chat_history=request.chat_history)
+    if (user == 'staff'):
+        return ai_service.chat_with_rag(model='mistral', prompt=request.prompt, chat_history=request.chat_history)
 
 @router.post("/summarize", response_model=SummarizeResponse)
 def summarize(request: SummarizeRequest, db: Session = Depends(get_db)):
@@ -104,3 +110,14 @@ async def designation(department_id: int = Path(..., title="Department ID", ge=1
         List of designation name, id, department id
     """
     return DesignationService.list_designation(department_id, db)
+
+@router.get("/index-opportunity", response_model=CreateIndexResponse)
+def create_index(db: Session = Depends(get_db)):
+    """
+    Create index from all created opportunities.
+
+    Returns:
+        success (bool): whether or not index was created
+    """
+    ai_service = AIService()
+    return ai_service.create_index(model='mistral', db=db)

@@ -1,4 +1,5 @@
 from sqlalchemy.orm import Session
+from sqlalchemy import make_url
 from fastapi import HTTPException, status
 from app.dao import UserDAO, OptionDAO, QueryDAO, OpportunityDAO, DepartmentDAO, DesignationDAO, DepartmentDTO, DesignationDTO
 from app.auth import get_password_hash, verify_password, create_access_token
@@ -7,6 +8,12 @@ from pydantic import BaseModel, EmailStr
 from typing import List, Optional
 import os
 from mistralai import Mistral, Messages, SystemMessage, UserMessage, AssistantMessage
+from llama_index.core import StorageContext, VectorStoreIndex, load_index_from_storage, Settings
+from llama_index.llms.mistralai import MistralAI
+from llama_index.embeddings.mistralai import MistralAIEmbedding
+from llama_index.vector_stores.postgres import PGVectorStore
+from llama_index.readers.database import DatabaseReader
+from llama_index.core.llms import ChatMessage, MessageRole
 
 class UserCreate(BaseModel):
     first_name: str
@@ -159,6 +166,7 @@ class OpportunityService:
 class ChatRequest(BaseModel):
     prompt: str
     chat_history: list[Messages]
+    user: str
 class ChatResponse(BaseModel):
     response: str
     chat_history: list[Messages]
@@ -167,6 +175,10 @@ class SummarizeRequest(BaseModel):
     chat_history: list[Messages]
 class SummarizeResponse(BaseModel):
     response: str
+
+class CreateIndexResponse(BaseModel):
+    success: bool
+    message: str
 class AIService:
 
     def __init__(self):
@@ -197,7 +209,8 @@ class AIService:
         self.messages: list[Messages] = []
         self.messages.append(SystemMessage(content=system_prompt))
 
-    def chat(self, model: str, prompt: str, chat_history: list[Messages] = []) -> str:
+    def chat(self, model: str, prompt: str, chat_history: list[Messages] = []) -> ChatResponse:
+        print("In chat function")
         if model.lower() == "mistral":
             api_key = os.environ["MISTRAL_API_KEY"]
             model = "mistral-large-latest"
@@ -217,6 +230,39 @@ class AIService:
             return ChatResponse(response=chat_response.choices[0].message.content, chat_history=messages[1:])
         else:
             raise Exception("AI model is not currently supported or does not exist")
+        
+    def chat_with_rag(self, model: str, prompt: str, chat_history: list[Messages] = []) -> ChatResponse:
+        # load index
+        print("In chat_with_rag function")
+        api_key = os.environ["MISTRAL_API_KEY"]
+        llm = MistralAI(model='mistral-large-latest', api_key=api_key)
+        Settings.embed_model = MistralAIEmbedding(model_name='mistral-embed', api_key=api_key)
+
+        messages = self.messages
+        messages.extend(chat_history)
+        
+        chat_messages = []
+        
+        for message in messages:
+            if message.role == "user":
+                chat_messages.append(ChatMessage(role=MessageRole.USER, content=message.content))
+            else:
+                chat_messages.append(ChatMessage(role=MessageRole.ASSISTANT, content=message.content))
+
+        messages.append(UserMessage(content=prompt))
+        
+        try:
+            storage_context = StorageContext.from_defaults(persist_dir="./index_store")
+            index = load_index_from_storage(storage_context)
+        except Exception as e:
+            print(str(e))
+            return ChatResponse(response="Opportunities could not be loaded, there may not be any available right now. Please try again later.", chat_history=messages[1:])
+        
+        response = index.as_chat_engine(llm=llm, similarity_top_k=10, chat_mode="context").chat(message=prompt, chat_history=chat_messages)
+        messages.append(AssistantMessage(content=response.response))
+        return ChatResponse(response=response.response, chat_history=messages[1:])
+
+
         
     def summarize(self, model: str, chat_history: list[Messages], db: Session):
         if model.lower() == "mistral":
@@ -261,6 +307,104 @@ class AIService:
             return SummarizeResponse(response=chat_response.choices[0].message.content)
         else:
             raise Exception("AI model is not currently supported or does not exist")
+        
+    def create_index(self, model: str, db: Session):
+        api_key = os.environ["MISTRAL_API_KEY"]
+        data_store = 'local'
+
+        try:
+            # Initialize Mistral model and embedding model
+            llm = MistralAI(model='mistral-large-latest', api_key=api_key)
+            embedding_model = MistralAIEmbedding(model_name='mistral-embed', api_key=api_key)
+
+            # Create storage context which will allow us to use Postgres as our Vector Store
+            # pg_storage_context = self.getStorageContext(data_store=data_store)
+
+            # Get all opportunity objects from DB to be ingested into index
+            db_reader = self.setup_llama_db_reader()
+            query = "SELECT * FROM opportunity;"
+            documents = db_reader.load_data(query=query)
+
+            # Create index from db documents
+            if(data_store == 'local'):
+                index = VectorStoreIndex.from_documents(documents=documents, embed_model=embedding_model)
+                index.storage_context.persist(persist_dir="index_store")
+
+            return CreateIndexResponse(success=True, message='Index created successfully')
+        except Exception as e:
+            print(str(e))
+            return CreateIndexResponse(success=False, message=str(e))
+
+
+
+    def getStorageContext(self, data_store: str, returnVectorStore: bool = False) -> StorageContext | PGVectorStore:
+        """
+        Returns the storage context to persist a LlamaIndex index. This will be passed into the `VectorStoreIndex.from_documents()` function as the `storage_context` argument.
+        This will also be used as the `storage_context` argument to load indexes.
+
+        Args:
+            data_store (str): Type of data store, e.g. "postgres" or "local".
+            
+        Returns:
+            StorageContext: Storage context to be passed into the create index function.
+        """
+
+        match (data_store.lower()):
+            case "postgresql":
+                print("Setting up Postgres storage context")
+                try:
+                    postgres_connection_string = os.getenv(
+                                                    "DATABASE_URL",
+                                                    "postgresql://postgres:postgres@localhost:5432/bench_management"
+                                                    )
+
+                    url = make_url(postgres_connection_string)
+                    postgres_vector_store = PGVectorStore.from_params(
+                        database=url.database,
+                        host=url.host,
+                        password=url.password,
+                        port=url.port,
+                        user=url.username,
+                        table_name='vectorstore',
+                        embed_dim=1024,
+                        hnsw_kwargs={
+                            "hnsw_m": 16,
+                            "hnsw_ef_construction": 64,
+                            "hnsw_ef_search": 40,
+                            "hnsw_dist_method": "vector_cosine_ops",
+                        }
+                    )
+
+                    if (returnVectorStore):
+                        return postgres_vector_store
+
+                    storage_context: StorageContext = StorageContext.from_defaults(
+                                vector_store=postgres_vector_store
+                            )
+                    
+                except Exception as e:
+                    print(e)
+                    return f"Failed to create Postgres Storage Context: {e}"
+            
+            case "local":
+                print("Setting up local data store")
+                # storage_context = StorageContext.from_defaults(persist_dir="./index_store")
+
+        return storage_context
+    
+    def setup_llama_db_reader(self) -> DatabaseReader:
+        db = DatabaseReader(
+            scheme="postgresql",  # Database Scheme
+            host="localhost",  # Database Host
+            port="5432",  # Database Port
+            user="postgres",  # Database User
+            password="postgres",  # Database Password
+            dbname="bench_management",  # Database Name
+        )
+
+        return db
+
+
 
 class DepartmentService:
     @staticmethod
