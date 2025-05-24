@@ -14,6 +14,9 @@ from llama_index.embeddings.mistralai import MistralAIEmbedding
 from llama_index.vector_stores.postgres import PGVectorStore
 from llama_index.readers.database import DatabaseReader
 from llama_index.core.llms import ChatMessage, MessageRole
+import logging
+
+logger = logging.getLogger(__name__)
 
 class UserCreate(BaseModel):
     first_name: str
@@ -27,7 +30,7 @@ class UserCreate(BaseModel):
         from_attributes = True
 
 class UserLogin(BaseModel):
-    email: EmailStr
+    username: EmailStr
     password: str
 
 class UserResponse(BaseModel):
@@ -35,9 +38,10 @@ class UserResponse(BaseModel):
     first_name: str
     last_name: str
     email: EmailStr
-    designation: str
     department_id: int
+    department: str
     designation_id: int
+    designation: str
 
     class Config:
         from_attributes = True
@@ -96,10 +100,28 @@ class UserService:
             
             # Save user to database
             user = UserDAO.save_user(db, user_dict)
-            
-            return UserResponse.from_orm(user)
+
+
+            designation_name = DesignationService.retrieve_designation_name(user.designation_id, db)
+            department_name = DepartmentService.retrieve_department_name(user.department_id, db)
+
+            return TokenResponse(
+                access_token="access_token",
+                token_type="bearer",
+                user=UserResponse(
+                    id=user.id,
+                    first_name=user.first_name,
+                    last_name=user.last_name,
+                    email=user.email,
+                    department_id=user.department_id,
+                    department=department_name,
+                    designation_id=user.designation_id,
+                    designation=designation_name
+                )
+        )
             
         except Exception as e:
+            logger.exception("Error in user registration")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to register user: {str(e)}"
@@ -121,7 +143,7 @@ class UserService:
             HTTPException: If validation fails
         """
         # Retrieve user by email
-        user = UserDAO.retrieve_user_by_email(db, user_data.email)
+        user = UserDAO.retrieve_user_by_email(db, user_data.username)
         
         if not user:
             raise HTTPException(
@@ -133,16 +155,29 @@ class UserService:
         if not verify_password(user_data.password, user.password):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid email or password"
+                detail="Invalid  password"
             )
         
         # Create access token
         access_token = create_access_token(data={"sub": str(user.id)})
-        
+
+        # Retrieve designation and department name name using the ID
+        designation_name = DesignationService.retrieve_designation_name(user.designation_id, db)
+        department_name = DepartmentService.retrieve_department_name(user.department_id, db)
+
         return TokenResponse(
             access_token=access_token,
             token_type="bearer",
-            user=UserResponse.from_orm(user)
+            user=UserResponse(
+                id=user.id,
+                first_name=user.first_name,
+                last_name=user.last_name,
+                email=user.email,
+                department_id=user.department_id,
+                department=department_name,
+                designation_id=user.designation_id,
+                designation=designation_name
+            )
         )
 
 class OptionService:
@@ -170,6 +205,10 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     response: str
     chat_history: list[Messages]
+
+class LoginRequest(BaseModel):
+    username: EmailStr
+    password: str
 
 class SummarizeRequest(BaseModel):
     chat_history: list[Messages]
@@ -399,19 +438,24 @@ class AIService:
             port="5432",  # Database Port
             user="postgres",  # Database User
             password="postgres",  # Database Password
-            dbname="bench_management",  # Database Name
+            dbname="agentops",  # Database Name
         )
 
         return db
-
-
 
 class DepartmentService:
     @staticmethod
     def list_department(db: Session) -> List[DepartmentDTO]:
         return DepartmentDAO.list_departments(db)
 
+    @staticmethod
+    def retrieve_department_name(departmentId:int, db: Session) -> str:
+        return DepartmentDAO.retrieve_department_name(departmentId, db)
+
 class DesignationService:
     @staticmethod
     def list_designation(departmentId:int, db: Session) -> List[DesignationDTO]:
         return DesignationDAO.list_designations_per_department(departmentId, db)
+    @staticmethod
+    def retrieve_designation_name(designationId:int, db: Session) -> str:
+        return DesignationDAO.retrieve_designation_name(designationId, db)

@@ -106,8 +106,20 @@ class DepartmentDAO:
         depts = db.query(Department).all()
         return [DepartmentDTO(id=d.id, name=d.name) for d in depts]
 
+    def retrieve_department_name(departmentId: int, db: Session) -> str:
+        department_model = db.query(Department).filter(Department.id == departmentId).first()
+        if not department_model:
+            raise ValueError(f"Department with ID {departmentId} not found.")
+        return department_model.name
+
+
 class DesignationDAO:
     @staticmethod
     def list_designations_per_department(departmentId: int, db: Session) -> List[DesignationDTO]:
         designation_list = db.query(Designation).filter(Designation.department_id == departmentId).all()
         return [DesignationDTO(id=d.id, department_id=d.department_id, title=d.title) for d in designation_list]
+    def retrieve_designation_name(designationId: int, db: Session) -> str:
+        designation_model = db.query(Designation).filter(Designation.id == designationId).first()
+        if not designation_model:
+            raise ValueError(f"Designation with ID {designationId} not found.")
+        return designation_model.title
