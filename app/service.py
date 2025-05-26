@@ -438,7 +438,7 @@ class AIService:
             port="5432",  # Database Port
             user="postgres",  # Database User
             password="postgres",  # Database Password
-            dbname="agentops",  # Database Name
+            dbname="bench_management",  # Database Name
         )
 
         return db
