@@ -1,3 +1,3 @@
 """
-Test suite for Bench Management App
+Test suite for Opportunity Collector App
 """

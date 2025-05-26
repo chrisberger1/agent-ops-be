@@ -9,7 +9,7 @@ Base.metadata.create_all(bind=engine)
 
 # Initialize FastAPI application
 app = FastAPI(
-    title="Bench Management App",
+    title="AI Opporturniy Holder App",
     description="API for user registration and authentication",
     version="1.0.0"
 )
@@ -17,7 +17,7 @@ app = FastAPI(
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -28,7 +28,7 @@ app.include_router(auth_router)
 
 @app.get("/")
 async def root():
-    return {"message": "Bench Management App is running"}
+    return {"message": "Opportunity Collector App is running"}
 
 if __name__ == "__main__":
     import uvicorn

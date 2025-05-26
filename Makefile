@@ -1,4 +1,4 @@
-# Bench Management App Makefile
+# Opportunity Collector App Makefile
 # Simplifies common development and deployment tasks
 
 # Variables
