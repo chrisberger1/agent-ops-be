@@ -1,8 +1,8 @@
 
-DROP SCHEMA IF EXISTS agentops CASCADE;
+DROP SCHEMA IF EXISTS bench_management CASCADE;
 
 -- Create the schema
-CREATE SCHEMA IF NOT EXISTS agentops;
+CREATE SCHEMA IF NOT EXISTS bench_management;
 
 -- Drop 'users' table if it exists
 DROP TABLE IF EXISTS users;
@@ -27,6 +27,8 @@ DROP TABLE IF EXISTS query;
 
 -- Drop 'option' table if it exists
 DROP TABLE IF EXISTS option;
+
+CREATE EXTENSION vector;
 
 
 -- Create the department table within the schema
